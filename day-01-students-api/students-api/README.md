@@ -111,6 +111,22 @@ src/
 
 ---
 
+## Postman
+
+Bu projedeki tüm endpoint'ler Postman Collection olarak hazırlanmıştır.
+
+### Files
+- Collection: `postman/Day01 - Students API.postman_collection.json`
+- Environment: `postman/Local - Day01 Students API.postman_environment.json`
+
+### Import & Run
+1) Postman → **Import** → yukarıdaki collection dosyasını seç
+2) (Opsiyonel) Environment dosyasını da import et ve **Local - Day01 Students API** environment'ını seç
+3) Server'ı çalıştır:
+   ```bash
+   npm run start:dev
+İstekleri çalıştır:
+
 ## Notes
 - This project uses in-memory array storage (`StudentsService`), no DB.
 - Seed data is loaded on app start.
