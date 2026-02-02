@@ -1,0 +1,168 @@
+{
+	"info": {
+		"_postman_id": "8c375b3a-ec4a-4dbb-8685-737bd3dcc4e8",
+		"name": "Day01 - Students API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "23584529"
+	},
+	"item": [
+		{
+			"name": "Students",
+			"item": [
+				{
+					"name": "Get All Students",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/students",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Student By Id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/students/3b1d8c6a-8c3a-4a3f-9b0c-7e3d2c5c8f11",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students",
+								"3b1d8c6a-8c3a-4a3f-9b0c-7e3d2c5c8f11"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Passed Students",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/students/passed",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students",
+								"passed"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Average Grade",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/students/averagegrade",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students",
+								"averagegrade"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Student",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Mustafa\",\r\n  \"age\": 20,\r\n  \"grade\": 25,\r\n  \"isActive\": true\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/students",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Student",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"age\": 45\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/students/3b1d8c6a-8c3a-4a3f-9b0c-7e3d2c5c8f11",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students",
+								"3b1d8c6a-8c3a-4a3f-9b0c-7e3d2c5c8f11"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Student",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Mustafa\",\r\n  \"age\": 20,\r\n  \"grade\": 25,\r\n  \"isActive\": true\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/students/f2ad3a0c-1f3a-4f0b-9f4a-9a4c0d2a9b21",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"students",
+								"f2ad3a0c-1f3a-4f0b-9f4a-9a4c0d2a9b21"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
