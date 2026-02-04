@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { TraceContextService } from './trace-context.service';
 
 /**
@@ -7,6 +7,8 @@ import { TraceContextService } from './trace-context.service';
  */
 @Injectable()
 export class TraceLoggerService {
+  private readonly logger = new Logger(TraceLoggerService.name);
+
   constructor(private readonly traceContext: TraceContextService) {}
 
   private prefix(): string {
@@ -15,22 +17,22 @@ export class TraceLoggerService {
   }
 
   log(message: string, ...optionalParams: unknown[]): void {
-    console.log(this.prefix() + message, ...optionalParams);
+    this.logger.log(this.prefix() + message, ...optionalParams);
   }
 
   error(message: string, ...optionalParams: unknown[]): void {
-    console.error(this.prefix() + message, ...optionalParams);
+    this.logger.error(this.prefix() + message, ...optionalParams);
   }
 
   warn(message: string, ...optionalParams: unknown[]): void {
-    console.warn(this.prefix() + message, ...optionalParams);
+    this.logger.warn(this.prefix() + message, ...optionalParams);
   }
 
   debug(message: string, ...optionalParams: unknown[]): void {
-    console.debug(this.prefix() + message, ...optionalParams);
+    this.logger.debug(this.prefix() + message, ...optionalParams);
   }
 
   verbose(message: string, ...optionalParams: unknown[]): void {
-    console.debug(this.prefix() + message, ...optionalParams);
+    this.logger.verbose(this.prefix() + message, ...optionalParams);
   }
 }
