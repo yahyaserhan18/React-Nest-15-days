@@ -15,7 +15,11 @@ async function bootstrap() {
   );
 
   const configService = app.get(ConfigService);
-  const port = parseInt(configService.get<string>('PORT', '3000'), 10);
+  const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 }
-bootstrap();
+
+bootstrap().catch((err) => {
+  console.error('Application failed to start:', err?.message ?? err);
+  process.exit(1);
+});
