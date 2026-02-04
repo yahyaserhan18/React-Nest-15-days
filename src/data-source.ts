@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
+/**
+ * TypeORM CLI data source (migrations). Runs outside NestJS, so env is loaded
+ * via dotenv above; ConfigService is not available in this context.
+ */
 export default new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',
