@@ -1,15 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { StudentEntity } from './entities/student.entity';
+import { type IStudentRepository, STUDENT_REPOSITORY } from './repositories';
 
 @Injectable()
 export class StudentsService {
   constructor(
-    @InjectRepository(StudentEntity)
-    private readonly repository: Repository<StudentEntity>,
+    @Inject(STUDENT_REPOSITORY)
+    private readonly repository: IStudentRepository,
   ) {}
 
   async create(dto: CreateStudentDto): Promise<StudentEntity> {
@@ -48,18 +47,10 @@ export class StudentsService {
   }
 
   async passed(minGrade = 50): Promise<StudentEntity[]> {
-    return this.repository.find({
-      where: { grade: MoreThanOrEqual(minGrade) },
-      order: { createdAt: 'ASC' },
-    });
+    return this.repository.findWithGradeGreaterOrEqual(minGrade);
   }
 
   async averageGrade(): Promise<number> {
-    const result = await this.repository
-      .createQueryBuilder('s')
-      .select('AVG(s.grade)', 'avg')
-      .getRawOne<{ avg: string | null }>();
-    const avg = result?.avg ? parseFloat(result.avg) : 0;
-    return Math.round(avg * 100) / 100;
+    return this.repository.getAverageGrade();
   }
 }
