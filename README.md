@@ -321,3 +321,103 @@ src/
       update-student.dto.ts
     seed.ts               # Seed data (10 students)
 ```
+
+---
+---
+
+# Day 03 - ConfigService, Repository Pattern & Request Trace ID
+
+Refactors and features added:
+
+- **ConfigService** – All app config now uses NestJS `ConfigService.get()` instead of `process.env.*` (TypeORM and `main.ts`).
+- **Repository Pattern** – Student data access is behind an `IStudentRepository` interface; the service depends on the interface and Nest injects the TypeORM implementation via a token (testable, swappable).
+- **Request Correlation ID (Trace ID)** – Every request gets a unique `traceId` (UUID), attached to `req.traceId` and sent back in the `X-Trace-Id` response header.
+- **Trace-aware logging** – `TraceContextService` and `TraceLoggerService` let any controller/service access the current trace ID and log with it.
+
+---
+
+## Tech Stack (Day 03)
+
+- Everything from Day 02, plus:
+- `ConfigService` for all environment-based config (no direct `process.env` in app code).
+- Request-scoped trace ID via middleware + `AsyncLocalStorage`.
+- Express type augmentation for `req.traceId`.
+
+---
+
+## 1) Config: ConfigService
+
+- **`src/app.module.ts`** – TypeORM uses `TypeOrmModule.forRootAsync()` with a factory that injects `ConfigService`. DB settings read via `configService.get('DB_HOST', 'localhost')`, etc.; `DB_PORT` is parsed with `parseInt(..., 10)`.
+- **`src/main.ts`** – Port is read with `app.get(ConfigService)` and `configService.get('PORT', '3000')`, then parsed before `app.listen()`.
+- **`src/data-source.ts`** – Still uses `process.env` and `dotenv/config` (TypeORM CLI runs outside Nest). Comment added to document this.
+
+No new env vars; same keys: `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `PORT`.
+
+---
+
+## 2) Repository Pattern
+
+We use the **Repository Pattern** so the application layer (services) does not depend on a specific persistence implementation (e.g. TypeORM). The service talks to an **interface**, and Nest injects the concrete implementation via a **token**.
+
+- **Interface** – `IStudentRepository` (`src/students/repositories/student.repository.interface.ts`) defines the contract: `create`, `save`, `find`, `findOneBy`, `merge`, `delete`, `count`, `findWithGradeGreaterOrEqual`, `getAverageGrade`. The service only knows this API.
+- **Implementation** – `StudentRepository` (`src/students/repositories/student.repository.ts`) implements `IStudentRepository` and delegates to TypeORM’s `Repository<StudentEntity>`. All DB access lives here.
+- **Token** – `STUDENT_REPOSITORY` is a `Symbol` used as the injection token. In `StudentsModule`, we register: `{ provide: STUDENT_REPOSITORY, useClass: StudentRepository }`. The service (and seed) inject with `@Inject(STUDENT_REPOSITORY) private readonly repository: IStudentRepository`.
+- **Why** – The service stays free of TypeORM imports and SQL details. You can unit-test by providing a mock that implements `IStudentRepository`, or swap to another storage (e.g. MongoDB, in-memory) by adding a new implementation and changing the `useClass` (or `useFactory`) in the module.
+
+**Summary:** Service → depends on `IStudentRepository` (interface) ← provided by `StudentRepository` (TypeORM). Data access is encapsulated behind the repository interface.
+
+---
+
+## 3) Request Trace ID (Middleware)
+
+- **Middleware** – `TraceIdMiddleware` runs first on every request: generates `traceId` with `crypto.randomUUID()`, sets `req.traceId`, sets response header `X-Trace-Id`, and runs the rest of the pipeline inside `AsyncLocalStorage.run()` so the same ID is available for the whole request.
+- **Applied globally** – In `AppModule`, `configure(consumer)` uses `consumer.apply(TraceIdMiddleware).forRoutes('*')` (module approach, no middleware in `main.ts`).
+- **Typing** – `src/types/express.d.ts` augments `Express.Request` with optional `traceId?: string`.
+
+---
+
+## 4) Trace context and logging
+
+- **`TraceContextService`** – Injectable; `getTraceId()` returns the current request’s trace ID (or `undefined` outside a request). Uses the same `AsyncLocalStorage` as the middleware.
+- **`TraceLoggerService`** – Injectable logger that prefixes each message with `[traceId=...]` when a trace ID exists. Methods: `log`, `error`, `warn`, `debug`, `verbose`.
+- **`CommonModule`** – Global module that provides and exports both services so they can be injected anywhere.
+- **Example** – `StudentsService.findById()` injects `TraceLoggerService` and logs a warning with trace ID when a student is not found.
+
+---
+
+## 5) Project structure (Day 03 additions)
+
+```
+src/
+  types/
+    express.d.ts          # Augmentation: Request.traceId
+  common/
+    trace-context.ts      # AsyncLocalStorage<TraceStore>
+    trace-context.service.ts
+    trace-logger.service.ts
+    common.module.ts      # Global; exports trace services
+  middleware/
+    trace-id.middleware.ts
+  students/
+    repositories/
+      student.repository.interface.ts   # IStudentRepository + STUDENT_REPOSITORY token
+      student.repository.ts             # StudentRepository (TypeORM implementation)
+      index.ts
+    students.module.ts    # provide: STUDENT_REPOSITORY, useClass: StudentRepository
+    students.service.ts  # @Inject(STUDENT_REPOSITORY) repository: IStudentRepository
+  app.module.ts          # NestModule + configure(TraceIdMiddleware.forRoutes('*'))
+                          # Imports CommonModule; TypeOrmModule.forRootAsync(ConfigService)
+  main.ts                # Port from ConfigService
+```
+
+---
+
+## 6) Verification (Day 03)
+
+- [ ] `npm run start:dev` runs; no config or middleware errors.
+- [ ] Any request returns response header `X-Trace-Id` with a UUID (e.g. `GET /api/students`).
+- [ ] Controllers can use `@Req() req` and read `req.traceId` (same UUID as header).
+- [ ] Services can inject `TraceContextService` and call `getTraceId()`; inject `TraceLoggerService` and log; logs show `[traceId=...]` when in a request.
+- [ ] DB and port still come from `.env` via ConfigService (no `process.env` in app code except `data-source.ts`).
+
+---
