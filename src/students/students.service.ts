@@ -3,7 +3,7 @@ import { TraceLoggerService } from '../common/trace-logger.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentResponseDto } from './dto/student-response.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
-import { StudentModel } from './models/student.model';
+import { toStudentResponseDto } from './mappers/student.mapper';
 import { type IStudentRepository, STUDENT_REPOSITORY } from './repositories';
 
 @Injectable()
@@ -14,17 +14,6 @@ export class StudentsService {
     private readonly traceLogger: TraceLoggerService,
   ) {}
 
-  private mapToResponse(model: StudentModel): StudentResponseDto {
-    return {
-      id: model.id,
-      name: model.name,
-      age: model.age,
-      grade: model.grade,
-      isActive: model.isActive,
-      createdAt: model.createdAt.toISOString(),
-    };
-  }
-
   async create(dto: CreateStudentDto): Promise<StudentResponseDto> {
     const model = this.repository.create({
       name: dto.name,
@@ -33,12 +22,12 @@ export class StudentsService {
       isActive: dto.isActive,
     });
     const saved = await this.repository.save(model);
-    return this.mapToResponse(saved);
+    return toStudentResponseDto(saved);
   }
 
   async findAll(): Promise<StudentResponseDto[]> {
     const models = await this.repository.find({ order: { createdAt: 'ASC' } });
-    return models.map((m) => this.mapToResponse(m));
+    return models.map(toStudentResponseDto);
   }
 
   async findById(id: string): Promise<StudentResponseDto> {
@@ -47,7 +36,7 @@ export class StudentsService {
       this.traceLogger.warn(`Student not found: ${id}`);
       throw new NotFoundException(`Student ${id} not found`);
     }
-    return this.mapToResponse(model);
+    return toStudentResponseDto(model);
   }
 
   async update(id: string, dto: UpdateStudentDto): Promise<StudentResponseDto> {
@@ -58,7 +47,7 @@ export class StudentsService {
     }
     const merged = this.repository.merge(model, dto);
     const saved = await this.repository.save(merged);
-    return this.mapToResponse(saved);
+    return toStudentResponseDto(saved);
   }
 
   async remove(id: string): Promise<void> {
@@ -70,7 +59,7 @@ export class StudentsService {
 
   async passed(minGrade = 50): Promise<StudentResponseDto[]> {
     const models = await this.repository.findWithGradeGreaterOrEqual(minGrade);
-    return models.map((m) => this.mapToResponse(m));
+    return models.map(toStudentResponseDto);
   }
 
   async averageGrade(): Promise<number> {
