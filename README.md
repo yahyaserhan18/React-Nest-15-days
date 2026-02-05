@@ -421,3 +421,137 @@ src/
 - [ ] DB and port still come from `.env` via ConfigService (no `process.env` in app code except `data-source.ts`).
 
 ---
+---
+
+# Day 04 – Prisma, Teachers & Courses, Pagination & Seed
+
+Summary of changes and features added.
+
+---
+
+## 1) TypeORM → Prisma
+
+- **Replaced TypeORM** with **Prisma 7**: `prisma/schema.prisma`, `prisma.config.ts`, `@prisma/adapter-pg`.
+- **PrismaModule + PrismaService** (`src/prisma/`): global module; builds `DATABASE_URL` from env (see §2); connects/disconnects in lifecycle hooks.
+- **Student data access**: `IStudentRepository` implemented by `StudentRepositoryPrisma`; students service and API behavior unchanged (same DTOs, routes, responses).
+- **Migrations**: Prisma migrations in `prisma/migrations/`; `npm run migration:deploy` (or `migration:dev`). Scripts use `scripts/ensure-database-url.js` and `scripts/migrate-deploy.js` so CLI works with `DB_*` vars.
+
+---
+
+## 2) Database configuration (single source of truth)
+
+- **Option A:** `DATABASE_URL`  
+- **Option B:** `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` (all required if no `DATABASE_URL`).
+- **Shared helper** – `src/config/database-url.ts`: `getDatabaseUrl(env)` returns URL or throws with a clear message. Empty `DATABASE_URL` is treated as “not set” (fallback to Option B).
+- **Used in:** (1) `prisma.config.ts` for Prisma CLI (generate/migrate); (2) `PrismaService` at runtime (via ConfigService).
+- **Joi** (in `env.validation.ts`) enforces “either DATABASE_URL or all DB_*” at app bootstrap so misconfiguration fails fast.
+
+---
+
+## 3) Student refactors (structure & DTOs)
+
+- **StudentEntity → StudentModel**: plain type in `src/students/models/student.model.ts` (no ORM).
+- **StudentResponseDto**: API response shape; `createdAt` as ISO string. Base student DTOs unchanged (no `courses` field).
+- **Mapper**: `src/students/mappers/student.mapper.ts` – pure `toStudentResponseDto(model)`.
+- **Course relations**: exposed only via `GET /api/students/:id/courses` returning `CourseResponseDto[]` (no change to `StudentResponseDto`).
+
+---
+
+## 4) Prisma schema: Teacher & Course
+
+- **Teacher**: `id` (UUID), `fullName`, `email` (unique), `createdAt`.
+- **Course**: `id` (UUID), `title`, `code` (unique), `createdAt`, `teacherId` (required), `teacher` relation with `onDelete: Cascade`.
+- **Course ↔ Student**: implicit many-to-many (`courses` on Student, `students` on Course). Table `students` kept with `@@map("students")`.
+- **Migration**: `add_teacher_and_course`; then seed data for teachers, courses, and student–course enrollments.
+
+---
+
+## 5) Seed data (idempotent, ordered)
+
+- **Teachers** – `src/teachers/seed.ts` + `TeachersSeedService`: seeds 2 teachers only when table is empty.
+- **Courses** – `src/courses/seed.ts` + `CoursesSeedService`: seeds 4 courses (linked to teachers) only when table is empty.
+- **Students** – `StudentsSeedService` uses Prisma: seeds students if empty, then **enrollments** (connects some students to courses); skips gracefully if no students or no courses.
+- **Order**: `AppSeedService` (OnApplicationBootstrap) runs `teachers.seed()` → `courses.seed()` → `students.seed()`. Seed services live in TeachersModule/CoursesModule/StudentsModule and are reused by AppSeedService (no duplicated logic).
+
+---
+
+## 6) Teachers & Courses feature modules
+
+Same structure as students: **dto/, mappers/, models/, repositories/** (interface + Prisma impl), **module, controller, service**.
+
+### Shared pagination
+
+- **PaginationQueryDto** (`src/common/dto/pagination-query.dto.ts`): `page` (default 1), `limit` (default 20, max 100), `@Type(() => Number)` + ValidationPipe `transform: true`; `getSkip()` = `(page - 1) * limit`, `getTake()` = `limit`.
+- List endpoints return **`{ data, meta }`** with `meta: { page, limit, total }` (or `meta: { total }` for single-resource lists like teacher’s courses).
+
+### Teachers
+
+- **Endpoints:** `GET /api/teachers` (list, paginated, optional `search` on fullName/email), `GET /api/teachers/:id/courses`, `GET /api/teachers/:id`, `POST`, `PATCH /:id`, `DELETE /:id`.
+- **Repository:** findMany(skip, take, search), count, findOneBy, create, save, merge, delete.
+- **404** when teacher not found; UUID params validated with ParseUUIDPipe.
+
+### Courses
+
+- **Endpoints:** `GET /api/courses` (list, paginated, optional `search` title/code, filter `teacherId`), `GET /api/courses/:id` (details: **CourseDetailsResponseDto** with teacher + studentsCount), `POST`, `PATCH /:id`, `DELETE /:id`, `POST /:id/students/:studentId` (enroll), `DELETE /:id/students/:studentId` (unenroll).
+- **Enroll/unenroll**: idempotent (no 409 if already connected/disconnected); 404 if course or student not found.
+- **CourseDetailsResponseDto**: used only for `GET /api/courses/:id`; base `CourseResponseDto` stays minimal.
+
+### DTOs and updates
+
+- **PATCH** (not PUT) for update on teachers and courses; DTOs are PartialType, behavior unchanged.
+- Base response DTOs kept minimal; relations and details via dedicated DTOs/endpoints only.
+
+---
+
+## 7) Project structure (Day 04)
+
+```
+prisma/
+  schema.prisma
+  migrations/
+prisma.config.ts
+src/
+  config/
+    database-url.ts       # getDatabaseUrl(env)
+    env.validation.ts     # Joi, Option A or B
+  common/
+    dto/
+      pagination-query.dto.ts
+  prisma/
+    prisma.module.ts
+    prisma.service.ts
+  teachers/
+    dto/, mappers/, models/, repositories/
+    teachers.controller.ts
+    teachers.service.ts
+    teachers.module.ts
+    teachers-seed.service.ts
+    seed.ts
+  courses/
+    dto/, mappers/, models/, repositories/
+    courses.controller.ts
+    courses.service.ts
+    courses.module.ts
+    courses-seed.service.ts
+    seed.ts
+  students/
+    dto/, mappers/, models/, repositories/
+    students.controller.ts
+    students.service.ts
+    students-seed.service.ts
+    students.module.ts
+    seed.ts
+  app-seed.service.ts      # Runs teachers → courses → students seed in order
+  app.module.ts            # Imports StudentsModule, TeachersModule, CoursesModule
+```
+
+---
+
+## 8) Run & verify (Day 04)
+
+- **Env:** `DATABASE_URL` or `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`; `PORT` optional (default 3000).
+- **Migrations:** `npm run migration:deploy` (or `npx prisma migrate dev` for dev).
+- **Start:** `npm run start:dev` (base URL `http://localhost:3000/api`).
+- **Build/tests:** `npm run build`, `npm test`.
+
+---
