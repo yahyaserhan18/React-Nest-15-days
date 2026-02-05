@@ -14,6 +14,6 @@ import { StudentsService } from './students.service';
     StudentsService,
     StudentsSeedService,
   ],
-  exports: [STUDENT_REPOSITORY],
+  exports: [STUDENT_REPOSITORY, StudentsSeedService],
 })
 export class StudentsModule {}
