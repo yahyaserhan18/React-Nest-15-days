@@ -1,5 +1,4 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
-import { StudentEntity } from './entities/student.entity';
 import { type IStudentRepository, STUDENT_REPOSITORY } from './repositories';
 import { studentsSeedData } from './seed';
 

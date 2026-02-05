@@ -1,8 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TraceLoggerService } from '../common/trace-logger.service';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { StudentResponseDto } from './dto/student-response.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
-import { StudentEntity } from './entities/student.entity';
+import { StudentModel } from './models/student.model';
 import { type IStudentRepository, STUDENT_REPOSITORY } from './repositories';
 
 @Injectable()
@@ -13,33 +14,51 @@ export class StudentsService {
     private readonly traceLogger: TraceLoggerService,
   ) {}
 
-  async create(dto: CreateStudentDto): Promise<StudentEntity> {
-    const entity = this.repository.create({
+  private mapToResponse(model: StudentModel): StudentResponseDto {
+    return {
+      id: model.id,
+      name: model.name,
+      age: model.age,
+      grade: model.grade,
+      isActive: model.isActive,
+      createdAt: model.createdAt.toISOString(),
+    };
+  }
+
+  async create(dto: CreateStudentDto): Promise<StudentResponseDto> {
+    const model = this.repository.create({
       name: dto.name,
       age: dto.age,
       grade: dto.grade,
       isActive: dto.isActive,
     });
-    return this.repository.save(entity);
+    const saved = await this.repository.save(model);
+    return this.mapToResponse(saved);
   }
 
-  async findAll(): Promise<StudentEntity[]> {
-    return this.repository.find({ order: { createdAt: 'ASC' } });
+  async findAll(): Promise<StudentResponseDto[]> {
+    const models = await this.repository.find({ order: { createdAt: 'ASC' } });
+    return models.map((m) => this.mapToResponse(m));
   }
 
-  async findById(id: string): Promise<StudentEntity> {
-    const entity = await this.repository.findOneBy({ id });
-    if (!entity) {
+  async findById(id: string): Promise<StudentResponseDto> {
+    const model = await this.repository.findOneBy({ id });
+    if (!model) {
       this.traceLogger.warn(`Student not found: ${id}`);
       throw new NotFoundException(`Student ${id} not found`);
     }
-    return entity;
+    return this.mapToResponse(model);
   }
 
-  async update(id: string, dto: UpdateStudentDto): Promise<StudentEntity> {
-    const entity = await this.findById(id);
-    this.repository.merge(entity, dto);
-    return this.repository.save(entity);
+  async update(id: string, dto: UpdateStudentDto): Promise<StudentResponseDto> {
+    const model = await this.repository.findOneBy({ id });
+    if (!model) {
+      this.traceLogger.warn(`Student not found: ${id}`);
+      throw new NotFoundException(`Student ${id} not found`);
+    }
+    const merged = this.repository.merge(model, dto);
+    const saved = await this.repository.save(merged);
+    return this.mapToResponse(saved);
   }
 
   async remove(id: string): Promise<void> {
@@ -49,8 +68,9 @@ export class StudentsService {
     }
   }
 
-  async passed(minGrade = 50): Promise<StudentEntity[]> {
-    return this.repository.findWithGradeGreaterOrEqual(minGrade);
+  async passed(minGrade = 50): Promise<StudentResponseDto[]> {
+    const models = await this.repository.findWithGradeGreaterOrEqual(minGrade);
+    return models.map((m) => this.mapToResponse(m));
   }
 
   async averageGrade(): Promise<number> {

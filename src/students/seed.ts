@@ -1,6 +1,6 @@
-import { StudentEntity } from './entities/student.entity';
+import { StudentModel } from './models/student.model';
 
-export const studentsSeedData: Partial<StudentEntity>[] = [
+export const studentsSeedData: Partial<StudentModel>[] = [
   {
     id: '3b1d8c6a-8c3a-4a3f-9b0c-7e3d2c5c8f11',
     name: 'Ali',
