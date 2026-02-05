@@ -14,6 +14,25 @@ model Student {
   grade     Int
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
+  courses   Course[]
 
   @@map("students")
+}
+
+model Teacher {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  fullName  String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  courses   Course[]
+}
+
+model Course {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title     String   @db.VarChar(255)
+  code      String   @unique @db.VarChar(50)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  teacherId String   @db.Uuid
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  students  Student[]
 }

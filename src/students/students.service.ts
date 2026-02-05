@@ -1,10 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TraceLoggerService } from '../common/trace-logger.service';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { CourseResponseDto } from './dto/course-response.dto';
 import { StudentResponseDto } from './dto/student-response.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { toStudentResponseDto } from './mappers/student.mapper';
 import { type IStudentRepository, STUDENT_REPOSITORY } from './repositories';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class StudentsService {
@@ -12,6 +14,7 @@ export class StudentsService {
     @Inject(STUDENT_REPOSITORY)
     private readonly repository: IStudentRepository,
     private readonly traceLogger: TraceLoggerService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async create(dto: CreateStudentDto): Promise<StudentResponseDto> {
@@ -64,5 +67,22 @@ export class StudentsService {
 
   async averageGrade(): Promise<number> {
     return this.repository.getAverageGrade();
+  }
+
+  async getCoursesForStudent(id: string): Promise<CourseResponseDto[]> {
+    const student = await this.prisma.student.findUnique({
+      where: { id },
+      select: { courses: true },
+    });
+    if (!student) {
+      this.traceLogger.warn(`Student not found: ${id}`);
+      throw new NotFoundException(`Student ${id} not found`);
+    }
+    return student.courses.map((c) => ({
+      id: c.id,
+      title: c.title,
+      code: c.code,
+      createdAt: c.createdAt.toISOString(),
+    }));
   }
 }

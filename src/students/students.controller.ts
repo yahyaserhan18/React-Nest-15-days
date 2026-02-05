@@ -38,6 +38,11 @@ export class StudentsController {
     return this.studentsService.averageGrade().then((average) => ({ average }));
   }
 
+  @Get(':id/courses') // GET /api/students/:id/courses
+  coursesByStudentId(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    return this.studentsService.getCoursesForStudent(id);
+  }
+
   @Get(':id') // GET /api/students/:id
   byId(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
     return this.studentsService.findById(id);
