@@ -25,6 +25,8 @@ model Teacher {
   email     String   @unique @db.VarChar(255)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   courses   Course[]
+
+  @@map("teachers")
 }
 
 model Course {
@@ -35,4 +37,6 @@ model Course {
   teacherId String   @db.Uuid
   teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   students  Student[]
+
+  @@map("courses")
 }
