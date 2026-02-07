@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -46,7 +51,7 @@ export class AuthService {
       });
 
       if (dto.role === Role.TEACHER) {
-        if (!dto.fullName) throw new Error('fullName is required for teacher');
+        if (!dto.fullName) throw new BadRequestException('fullName is required for teacher');
         await tx.teacher.create({
           data: {
             userId: newUser.id,
@@ -56,7 +61,7 @@ export class AuthService {
         });
       } else {
         if (dto.name == null || dto.age == null || dto.grade == null) {
-          throw new Error('name, age, and grade are required for student');
+          throw new BadRequestException('name, age, and grade are required for student');
         }
         await tx.student.create({
           data: {
@@ -121,7 +126,8 @@ export class AuthService {
 
     const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET');
     const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET');
-    if (!accessSecret || !refreshSecret) throw new Error('JWT secrets not configured');
+    if (!accessSecret || !refreshSecret)
+      throw new InternalServerErrorException('JWT secrets not configured');
 
     const accessExpiresSeconds = this.parseExpiresIn(accessExpiresIn);
     const refreshExpiresSeconds = this.parseExpiresIn(refreshExpiresIn);

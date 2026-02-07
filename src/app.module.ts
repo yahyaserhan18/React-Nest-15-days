@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppSeedService } from './app-seed.service';
 import { AppService } from './app.service';
@@ -14,6 +14,7 @@ import { CoursesModule } from './courses/courses.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     TraceIdMiddleware,
     AppSeedService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule implements NestModule {

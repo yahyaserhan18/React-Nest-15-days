@@ -27,7 +27,8 @@ export function getDatabaseUrl(env: Record<string, string | undefined>): string 
       `Database config: set DATABASE_URL or all of DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME. Missing: ${missing.join(', ')}.`,
     );
   }
-
+  
   const encodedPassword = encodeURIComponent(password!);
-  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${dbName}`;
+  const encodedUsername = encodeURIComponent(username!);
+  return `postgresql://${encodedUsername}:${encodedPassword}@${host}:${port}/${dbName}`;
 }

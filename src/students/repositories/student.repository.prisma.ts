@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StudentModel } from '../models/student.model';
@@ -142,7 +142,8 @@ export class StudentRepositoryPrisma implements IStudentRepository {
     if (count > 0) return;
 
     for (const row of data) {
-      if (!row.userId) throw new Error('seedIfEmpty requires userId on each row');
+      if (!row.userId)
+        throw new InternalServerErrorException('seedIfEmpty requires userId on each row');
       await this.prisma.student.create({
         data: {
           ...(row.id && { id: row.id }),
