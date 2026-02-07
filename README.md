@@ -621,3 +621,95 @@ prisma/schema.prisma   # User model, Role enum, refreshTokenHash
 - **Endpoints:** Register → login → use `accessToken` in `Authorization: Bearer <token>` for `/api/auth/me` and other protected routes; use `refreshToken` at `POST /api/auth/refresh` to get new tokens; logout clears refresh token server-side.
 
 ---
+---
+
+# Day 06 – Exception Filters & Unified Error Responses
+
+Summary of the exception filter implementation and unified error response shape.
+
+---
+
+## 1) Goals
+
+- **Consistent error responses** – Every error (4xx and 5xx) returns the same JSON shape: `statusCode`, `message`, `error`, optional `traceId`, optional `details`.
+- **Validation errors** – ValidationPipe (class-validator) errors are formatted with `message: "Validation failed"` and `details.errors` (field + messages).
+- **Unknown errors** – Unhandled exceptions (e.g. raw `Error`, unexpected failures) are logged with trace ID and return a safe 500 response without exposing stack or internal messages in production.
+- **Trace ID** – Error responses include `traceId` when the request passed through `TraceIdMiddleware`, so support can correlate with logs.
+
+---
+
+## 2) Standard error response shape
+
+All error responses use this structure:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Validation failed",
+  "error": "Bad Request",
+  "traceId": "uuid-when-available",
+  "details": {
+    "errors": [
+      { "field": "body", "messages": ["email must be an email"] }
+    ]
+  }
+}
+```
+
+- **statusCode** – HTTP status (number).
+- **message** – Short, client-friendly message (string; for validation always `"Validation failed"`).
+- **error** – HTTP status text (e.g. `"Bad Request"`, `"Not Found"`).
+- **traceId** – Present when the request had a trace ID (from middleware).
+- **details** – Optional. For validation: `{ errors: [ { field, messages } ] }`; omitted for other errors.
+
+Types are defined in `src/common/dto/error-response.dto.ts` (`ErrorResponseDto`, `ErrorResponseDetails`, `ValidationErrorItem`).
+
+---
+
+## 3) Global exception filter
+
+- **AllExceptionsFilter** (`src/common/filters/all-exceptions.filter.ts`) – Single global filter registered with `APP_FILTER` in `AppModule`. Catches all exceptions and normalizes them to the standard shape.
+- **HttpException** – Nest built-in exceptions (`NotFoundException`, `ConflictException`, `UnauthorizedException`, `ForbiddenException`, `BadRequestException`, etc.) are mapped to the same shape; status and message preserved.
+- **Validation errors** – When the exception is a `BadRequestException` with an array of messages (from ValidationPipe), the filter sets `message: "Validation failed"` and builds `details.errors` (supports both string arrays and `{ property, constraints }` from a custom `exceptionFactory`).
+- **Prisma errors** – `P2002` (unique constraint) → 409 Conflict; `P2025` (record not found) → 404 Not Found.
+- **Unknown errors** – Any other exception (e.g. `Error`) → 500; in production the response message is generic (`"Internal server error"`); full error and stack are only logged (with trace ID).
+- **Logging** – Filter injects `TraceContextService` and `TraceLoggerService`: 4xx logged at `warn`, 5xx at `error` with stack.
+
+---
+
+## 4) Replaced raw `throw new Error()` with HTTP exceptions
+
+Application code now uses Nest HTTP exceptions so the filter can return the correct status and shape:
+
+- **auth.service.ts** – `BadRequestException` for missing `fullName` (teacher) or `name`/`age`/`grade` (student); `InternalServerErrorException` when JWT secrets are not configured.
+- **jwt.strategy.ts** – `InternalServerErrorException` when `JWT_ACCESS_SECRET` is missing.
+- **student.repository.prisma.ts** – `InternalServerErrorException` when `seedIfEmpty` is called with a row missing `userId`.
+
+The only remaining `throw new Error()` is in `src/config/database-url.ts`, used at bootstrap/CLI when DB config is missing (no HTTP context).
+
+---
+
+## 5) Project structure (Day 06 additions)
+
+```
+src/
+  common/
+    dto/
+      error-response.dto.ts    # ErrorResponseDto, ErrorResponseDetails, ValidationErrorItem
+    filters/
+      index.ts
+      all-exceptions.filter.ts # Global filter: HttpException, validation, Prisma, unknown
+  app.module.ts                # APP_FILTER → AllExceptionsFilter
+```
+
+---
+
+## 6) Run & verify (Day 06)
+
+- No new env vars or migrations.
+- **Validation:** Send invalid body (e.g. `POST /api/auth/login` with `{}`) → 400, `message: "Validation failed"`, `details.errors` array.
+- **404:** `GET /api/students/<non-existent-uuid>` → 404 with standard shape and optional `traceId`.
+- **401/403/409:** Use existing auth and conflict scenarios; all return the same response shape and `traceId` when available.
+- **Production:** 500 responses never expose stack or internal error message; only generic message and `traceId` are returned.
+
+---
